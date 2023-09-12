@@ -1,4 +1,4 @@
-import { MEMOS_LOGO_URL } from "../helpers/consts";
+import classNames from "classnames";
 
 interface Props {
   avatarUrl?: string;
@@ -8,8 +8,12 @@ interface Props {
 const UserAvatar = (props: Props) => {
   const { avatarUrl, className } = props;
   return (
-    <div className={`${className ?? ""} w-8 h-8 rounded-full bg-gray-100 dark:bg-zinc-800`}>
-      <img className="w-full h-auto min-w-full min-h-full object-cover" src={avatarUrl || MEMOS_LOGO_URL} alt="" />
+    <div className={classNames(`w-8 h-8 overflow-clip rounded-full`, className)}>
+      <img
+        className="w-full h-auto rounded-full min-w-full min-h-full object-cover dark:opacity-80"
+        src={avatarUrl || "/logo.webp"}
+        alt=""
+      />
     </div>
   );
 };

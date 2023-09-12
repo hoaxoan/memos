@@ -1,20 +1,27 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useTranslation } from "react-i18next";
-import { useUserStore } from "../store/module";
-import Icon from "./Icon";
+import { useGlobalStore, useUserStore } from "@/store/module";
+import { useUserV1Store } from "@/store/v1";
+import { useTranslate } from "@/utils/i18n";
 import { generateDialog } from "./Dialog";
+import Icon from "./Icon";
 
 type Props = DialogProps;
 
 const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
-  const { t } = useTranslation();
+  const t = useTranslate();
   const userStore = useUserStore();
+  const userV1Store = useUserV1Store();
+  const globalStore = useGlobalStore();
+  const profile = globalStore.state.systemStatus.profile;
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordAgain, setNewPasswordAgain] = useState("");
 
   useEffect(() => {
-    // do nth
+    if (profile.mode === "demo" && userStore.state.user?.id === userStore.state.host?.id) {
+      toast.error("Demo mode does not support this operation.");
+      destroy();
+    }
   }, []);
 
   const handleCloseBtnClick = () => {
@@ -45,10 +52,13 @@ const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
 
     try {
       const user = userStore.getState().user as User;
-      await userStore.patchUser({
-        id: user.id,
-        password: newPassword,
-      });
+      await userV1Store.updateUser(
+        {
+          username: user.username,
+          password: newPassword,
+        },
+        ["password"]
+      );
       toast.success(t("message.password-changed"));
       handleCloseBtnClick();
     } catch (error: any) {
@@ -66,21 +76,21 @@ const ChangePasswordDialog: React.FC<Props> = ({ destroy }: Props) => {
         </button>
       </div>
       <div className="dialog-content-container">
-        <p className="text-sm mb-1">{t("common.new-password")}</p>
+        <p className="text-sm mb-1">{t("auth.new-password")}</p>
         <input
           type="password"
           autoComplete="new-password"
           className="input-text"
-          placeholder={t("common.repeat-new-password")}
+          placeholder={t("auth.new-password")}
           value={newPassword}
           onChange={handleNewPasswordChanged}
         />
-        <p className="text-sm mb-1 mt-2">{t("common.repeat-new-password")}</p>
+        <p className="text-sm mb-1 mt-2">{t("auth.repeat-new-password")}</p>
         <input
           type="password"
           autoComplete="new-password"
           className="input-text"
-          placeholder={t("common.repeat-new-password")}
+          placeholder={t("auth.repeat-new-password")}
           value={newPasswordAgain}
           onChange={handleNewPasswordAgainChanged}
         />

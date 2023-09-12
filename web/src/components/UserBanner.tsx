@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useUserStore } from "../store/module";
-import Dropdown from "./base/Dropdown";
+import { useNavigate } from "react-router-dom";
+import { useGlobalStore, useUserStore } from "@/store/module";
+import { useTranslate } from "@/utils/i18n";
 import showAboutSiteDialog from "./AboutSiteDialog";
+import Icon from "./Icon";
 import UserAvatar from "./UserAvatar";
-import showSettingDialog from "./SettingDialog";
+import Dropdown from "./kit/Dropdown";
 
 const UserBanner = () => {
-  const { t } = useTranslation();
+  const t = useTranslate();
+  const navigate = useNavigate();
+  const globalStore = useGlobalStore();
   const userStore = useUserStore();
+  const { systemStatus } = globalStore.state;
   const { user } = userStore.state;
   const [username, setUsername] = useState("Memos");
 
@@ -19,7 +23,7 @@ const UserBanner = () => {
   }, [user]);
 
   const handleMyAccountClick = () => {
-    showSettingDialog("my-account");
+    navigate(`/u/${user?.username}`);
   };
 
   const handleAboutBtnClick = () => {
@@ -34,11 +38,13 @@ const UserBanner = () => {
   return (
     <div className="flex flex-row justify-between items-center relative w-full h-auto px-2 flex-nowrap shrink-0">
       <Dropdown
-        className="w-full"
+        className="w-auto"
         trigger={
-          <div className="px-3 py-2 max-w-full flex flex-row justify-start items-center cursor-pointer rounded-lg hover:shadow hover:bg-white dark:hover:bg-zinc-700">
-            <UserAvatar avatarUrl={user?.avatarUrl} />
-            <span className="px-1 text-lg font-medium text-slate-800 dark:text-gray-200 shrink truncate">{username}</span>
+          <div className="px-4 py-2 max-w-full flex flex-row justify-start items-center cursor-pointer rounded-lg hover:shadow hover:bg-white dark:hover:bg-zinc-700">
+            <UserAvatar className="shadow" avatarUrl={user?.avatarUrl} />
+            <span className="px-1 text-lg font-medium text-slate-800 dark:text-gray-200 shrink truncate">
+              {user != undefined ? username : systemStatus.customizedProfile.name}
+            </span>
             {user?.role === "HOST" ? (
               <span className="text-xs px-1 bg-blue-600 dark:bg-blue-800 rounded text-white dark:text-gray-200 shadow">MOD</span>
             ) : null}
@@ -48,28 +54,35 @@ const UserBanner = () => {
         positionClassName="top-full mt-2"
         actions={
           <>
-            {!userStore.isVisitorMode() && (
+            {user != undefined && (
               <>
                 <button
-                  className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
                   onClick={handleMyAccountClick}
                 >
-                  <span className="mr-1">🤠</span> {t("setting.my-account")}
+                  <Icon.User className="w-5 h-auto mr-2 opacity-80" /> {t("common.profile")}
                 </button>
+                <a
+                  className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  href={`/u/${user?.id}/rss.xml`}
+                  target="_blank"
+                >
+                  <Icon.Rss className="w-5 h-auto mr-2 opacity-80" /> RSS
+                </a>
               </>
             )}
             <button
-              className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+              className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
               onClick={handleAboutBtnClick}
             >
-              <span className="mr-1">🏂</span> {t("common.about")}
+              <Icon.Info className="w-5 h-auto mr-2 opacity-80" /> {t("common.about")}
             </button>
-            {!userStore.isVisitorMode() && (
+            {user != undefined && (
               <button
-                className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                className="w-full px-3 truncate text-left leading-10 cursor-pointer rounded flex flex-row justify-start items-center dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800"
                 onClick={handleSignOutBtnClick}
               >
-                <span className="mr-1">👋</span> {t("common.sign-out")}
+                <Icon.LogOut className="w-5 h-auto mr-2 opacity-80" /> {t("common.sign-out")}
               </button>
             )}
           </>

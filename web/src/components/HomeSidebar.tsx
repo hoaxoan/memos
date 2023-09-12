@@ -1,32 +1,16 @@
-import { useEffect } from "react";
-import { resolution } from "../utils/layout";
-import { useLayoutStore } from "../store/module";
-import ShortcutList from "./ShortcutList";
-import TagList from "./TagList";
+import { useLayoutStore, useUserStore } from "../store/module";
 import SearchBar from "./SearchBar";
+import TagList from "./TagList";
 import UsageHeatMap from "./UsageHeatMap";
-import { useLocation } from "react-router-dom";
 
 const HomeSidebar = () => {
-  const location = useLocation();
   const layoutStore = useLayoutStore();
+  const userStore = useUserStore();
   const showHomeSidebar = layoutStore.state.showHomeSidebar;
-
-  useEffect(() => {
-    const handleWindowResize = () => {
-      if (window.innerWidth < resolution.md) {
-        layoutStore.setHomeSidebarStatus(false);
-      } else {
-        layoutStore.setHomeSidebarStatus(true);
-      }
-    };
-    window.addEventListener("resize", handleWindowResize);
-    handleWindowResize();
-  }, [location]);
 
   return (
     <div
-      className={`fixed md:sticky top-0 left-0 w-full md:w-56 h-full flex-shrink-0 pointer-events-none md:pointer-events-auto z-10 ${
+      className={`fixed md:sticky top-0 left-0 w-full md:w-56 h-full shrink-0 pointer-events-none md:pointer-events-auto z-10 ${
         showHomeSidebar && "pointer-events-auto"
       }`}
     >
@@ -45,8 +29,11 @@ const HomeSidebar = () => {
           <SearchBar />
         </div>
         <UsageHeatMap />
-        <ShortcutList />
-        <TagList />
+        {!userStore.isVisitorMode() && (
+          <>
+            <TagList />
+          </>
+        )}
       </aside>
     </div>
   );

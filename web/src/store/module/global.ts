@@ -1,9 +1,10 @@
-import * as api from "../../helpers/api";
-import * as storage from "../../helpers/storage";
+import axios from "axios";
+import * as api from "@/helpers/api";
+import storage from "@/helpers/storage";
+import i18n from "@/i18n";
+import { findNearestLanguageMatch } from "@/utils/i18n";
 import store, { useAppSelector } from "../";
 import { setAppearance, setGlobalState, setLocale } from "../reducer/global";
-import i18n from "../../i18n";
-import { convertLanguageCodeToLocale } from "../../utils/convertLanguageCodeToLocale";
 
 export const initialGlobalState = async () => {
   const defaultGlobalState = {
@@ -11,12 +12,16 @@ export const initialGlobalState = async () => {
     appearance: "system" as Appearance,
     systemStatus: {
       allowSignUp: false,
+      disablePasswordLogin: false,
       disablePublicMemos: false,
+      maxUploadSizeMiB: 0,
+      autoBackupInterval: 0,
       additionalStyle: "",
       additionalScript: "",
+      memoDisplayWithUpdatedTs: false,
       customizedProfile: {
         name: "memos",
-        logoUrl: "/logo.png",
+        logoUrl: "/logo.webp",
         description: "",
         locale: "en",
         appearance: "system",
@@ -33,28 +38,24 @@ export const initialGlobalState = async () => {
     defaultGlobalState.appearance = storageAppearance;
   }
 
-  try {
-    const { data } = (await api.getSystemStatus()).data;
-    if (data) {
-      const customizedProfile = data.customizedProfile;
-      defaultGlobalState.systemStatus = {
-        ...data,
-        customizedProfile: {
-          name: customizedProfile.name || "memos",
-          logoUrl: customizedProfile.logoUrl || "/logo.png",
-          description: customizedProfile.description,
-          locale: customizedProfile.locale || "en",
-          appearance: customizedProfile.appearance || "system",
-          externalUrl: "",
-        },
-      };
-      defaultGlobalState.locale = storageLocale || convertLanguageCodeToLocale(i18n.language);
-      defaultGlobalState.appearance = customizedProfile.appearance;
-    }
-  } catch (error) {
-    // do nth
+  const { data } = await api.getSystemStatus();
+  if (data) {
+    const customizedProfile = data.customizedProfile;
+    defaultGlobalState.systemStatus = {
+      ...data,
+      customizedProfile: {
+        name: customizedProfile.name || "memos",
+        logoUrl: customizedProfile.logoUrl || "/logo.webp",
+        description: customizedProfile.description,
+        locale: customizedProfile.locale || "en",
+        appearance: customizedProfile.appearance || "system",
+        externalUrl: "",
+      },
+    };
+    defaultGlobalState.locale =
+      storageLocale || defaultGlobalState.systemStatus.customizedProfile.locale || findNearestLanguageMatch(i18n.language);
+    defaultGlobalState.appearance = defaultGlobalState.systemStatus.customizedProfile.appearance;
   }
-
   store.dispatch(setGlobalState(defaultGlobalState));
 };
 
@@ -66,11 +67,19 @@ export const useGlobalStore = () => {
     getState: () => {
       return store.getState().global;
     },
+    getDisablePublicMemos: () => {
+      return store.getState().global.systemStatus.disablePublicMemos;
+    },
     isDev: () => {
       return state.systemStatus.profile.mode !== "prod";
     },
     fetchSystemStatus: async () => {
-      const { data: systemStatus } = (await api.getSystemStatus()).data;
+      const { data: systemStatus } = await api.getSystemStatus();
+      // TODO: update this when api v2 is ready.
+      const {
+        data: { systemInfo },
+      } = await axios.get("/api/v2/system/info");
+      systemStatus.dbSize = Number(systemInfo.dbSize);
       store.dispatch(setGlobalState({ systemStatus: systemStatus }));
       return systemStatus;
     },

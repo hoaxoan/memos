@@ -1,0 +1,108 @@
+syntax = "proto3";
+
+package memos.api.v2;
+
+import "api/v2/common.proto";
+import "api/v2/memo_service.proto";
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "gen/api/v2";
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {get: "/api/v2/users/{username}"};
+    option (google.api.method_signature) = "username";
+  }
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {
+    option (google.api.http) = {
+      post: "/api/v2/users/{username}"
+      body: "*"
+    };
+    option (google.api.method_signature) = "username";
+  }
+}
+
+message User {
+  int32 id = 1;
+
+  RowStatus row_status = 2;
+
+  google.protobuf.Timestamp create_time = 3;
+
+  google.protobuf.Timestamp update_time = 4;
+
+  string username = 5;
+
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    HOST = 1;
+    ADMIN = 2;
+    USER = 3;
+  }
+
+  Role role = 6;
+
+  string email = 7;
+
+  string nickname = 8;
+
+  string open_id = 9;
+
+  string avatar_url = 10;
+
+  string password = 11 [(google.api.field_behavior) = INPUT_ONLY];
+}
+
+message GetUserRequest {
+  string username = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  string username = 1;
+
+  User user = 2;
+
+  // The update mask applies to the user resource.
+  repeated string update_mask = 3;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+}
+
+message UserSetting {
+  // The user id of the setting.
+  int32 user_id = 1;
+
+  enum Key {
+    KEY_UNSPECIFIED = 0;
+    // The preferred locale.
+    LOCALE = 1;
+    // The preferred appearance.
+    APPEARANCE = 2;
+    // The default visibility of the memo when creating a new memo.
+    MEMO_VISIBILITY = 3;
+    // User's telegram id
+    TELEGRAM_USER_ID = 4;
+  }
+  // The key of the setting.
+  Key key = 2;
+
+  // The value of the setting.
+  UserSettingValue value = 3;
+}
+
+message UserSettingValue {
+  oneof value {
+    // Default value as a string.
+    string string_value = 1;
+    Visibility visibility_value = 2;
+  }
+}

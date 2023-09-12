@@ -1,5 +1,5 @@
 import store, { useAppSelector } from "..";
-import { setFilter, Filter } from "../reducer/filter";
+import { Filter, setFilter } from "../reducer/filter";
 
 export const useFilterStore = () => {
   const state = useAppSelector((state) => state.filter);
@@ -16,25 +16,9 @@ export const useFilterStore = () => {
       store.dispatch(
         setFilter({
           tag: undefined,
-          type: undefined,
           duration: undefined,
           text: undefined,
-          shortcutId: undefined,
           visibility: undefined,
-        })
-      );
-    },
-    setMemoTypeFilter: (type?: MemoSpecType) => {
-      store.dispatch(
-        setFilter({
-          type: type,
-        })
-      );
-    },
-    setMemoShortcut: (shortcutId?: ShortcutId) => {
-      store.dispatch(
-        setFilter({
-          shortcutId: shortcutId,
         })
       );
     },

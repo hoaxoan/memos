@@ -2,7 +2,7 @@ INSERT INTO
   memo (`id`, `content`, `creator_id`)
 VALUES
   (
-    1001,
+    1,
     "#Hello 👋 Welcome to memos.",
     101
   );
@@ -16,7 +16,7 @@ INSERT INTO
   )
 VALUES
   (
-    1002,
+    2,
     '#TODO 
 - [x] Take more photos about **🌄 sunset**;
 - [x] Clean the room;
@@ -35,9 +35,12 @@ INSERT INTO
   )
 VALUES
   (
-    1003,
-    "**[star-history.com](https://star-history.com/)**: The missing GitHub star history graph of GitHub repos.
-![](https://api.star-history.com/svg?repos=usememos/memos&type=Date)",
+    3,
+    "**[Slash](https://github.com/boojack/slash)**: A bookmarking and url shortener, save and share your links very easily.
+![](https://github.com/boojack/slash/raw/main/resources/demo.gif)
+
+**[SQL Chat](https://www.sqlchat.ai)**: Chat-based SQL Client
+![](https://www.sqlchat.ai/chat-logo-and-text.webp)",
     101,
     'PUBLIC'
   );
@@ -51,7 +54,7 @@ INSERT INTO
   )
 VALUES
   (
-    1004,
+    4,
     '#TODO 
 - [x] Take more photos about **🌄 sunset**;
 - [ ] Clean the classroom;
@@ -71,7 +74,7 @@ INSERT INTO
   )
 VALUES
   (
-    1005,
+    5,
     '三人行，必有我师焉！👨‍🏫',
     102,
     'PUBLIC'

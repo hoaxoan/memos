@@ -1,10 +1,14 @@
 type Appearance = "system" | "light" | "dark";
 
+interface BasicSetting {
+  locale: Locale;
+  appearance: Appearance;
+}
 interface Setting {
   locale: Locale;
   appearance: Appearance;
   memoVisibility: Visibility;
-  resourceVisibility: Visibility;
+  telegramUserId: string;
 }
 
 interface LocalSetting {
@@ -23,16 +27,16 @@ interface UserAppearanceSetting {
 }
 
 interface UserMemoVisibilitySetting {
-  key: "memoVisibility";
+  key: "memo-visibility";
   value: Visibility;
 }
 
-interface UserResourceVisibilitySetting {
-  key: "resourceVisibility";
-  value: Visibility;
+interface UserTelegramUserIdSetting {
+  key: "telegram-user-id";
+  value: string;
 }
 
-type UserSetting = UserLocaleSetting | UserAppearanceSetting | UserMemoVisibilitySetting | UserResourceVisibilitySetting;
+type UserSetting = UserLocaleSetting | UserAppearanceSetting | UserMemoVisibilitySetting | UserTelegramUserIdSetting;
 
 interface UserSettingUpsert {
   key: keyof Setting;

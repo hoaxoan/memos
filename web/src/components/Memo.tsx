@@ -1,49 +1,56 @@
-import copy from "copy-to-clipboard";
-import dayjs from "dayjs";
+import { Divider } from "@mui/joy";
 import { memo, useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
-import { useEditorStore, useFilterStore, useMemoStore, useUserStore } from "../store/module";
+import { Link } from "react-router-dom";
+import { UNKNOWN_ID } from "@/helpers/consts";
+import { getRelativeTimeString } from "@/helpers/datetime";
+import { useFilterStore, useMemoStore, useUserStore } from "@/store/module";
+import { useUserV1Store } from "@/store/v1";
+import { useTranslate } from "@/utils/i18n";
+import showChangeMemoCreatedTsDialog from "./ChangeMemoCreatedTsDialog";
+import { showCommonDialog } from "./Dialog/CommonDialog";
 import Icon from "./Icon";
 import MemoContent from "./MemoContent";
-import MemoResources from "./MemoResources";
-import showShareMemo from "./ShareMemoDialog";
+import showMemoEditorDialog from "./MemoEditor/MemoEditorDialog";
+import MemoRelationListView from "./MemoRelationListView";
+import MemoResourceListView from "./MemoResourceListView";
 import showPreviewImageDialog from "./PreviewImageDialog";
-import showEmbedMemoDialog from "./EmbedMemoDialog";
-import showChangeMemoCreatedTsDialog from "./ChangeMemoCreatedTsDialog";
-import "../less/memo.less";
+import showShareMemo from "./ShareMemoDialog";
+import UserAvatar from "./UserAvatar";
+import "@/less/memo.less";
 
 interface Props {
   memo: Memo;
-  readonly?: boolean;
+  showVisibility?: boolean;
+  lazyRendering?: boolean;
 }
 
-export const getFormatedMemoTimeStr = (time: number, locale = "en"): string => {
-  if (Date.now() - time < 1000 * 60 * 60 * 24) {
-    return dayjs(time).locale(locale).fromNow();
-  } else {
-    return dayjs(time).locale(locale).format("YYYY/MM/DD HH:mm:ss");
-  }
-};
-
 const Memo: React.FC<Props> = (props: Props) => {
-  const { memo, readonly } = props;
-  const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
-  const editorStore = useEditorStore();
+  const { memo, lazyRendering } = props;
+  const { i18n } = useTranslation();
+  const t = useTranslate();
   const filterStore = useFilterStore();
   const userStore = useUserStore();
   const memoStore = useMemoStore();
-  const [createdTimeStr, setCreatedTimeStr] = useState<string>(getFormatedMemoTimeStr(memo.createdTs, i18n.language));
+  const userV1Store = useUserV1Store();
+  const [shouldRender, setShouldRender] = useState<boolean>(lazyRendering ? false : true);
+  const [displayTime, setDisplayTime] = useState<string>(getRelativeTimeString(memo.displayTs));
   const memoContainerRef = useRef<HTMLDivElement>(null);
-  const isVisitorMode = userStore.isVisitorMode() || readonly;
+  const readonly = userStore.isVisitorMode() || userStore.getCurrentUsername() !== memo.creatorUsername;
+  const creator = userV1Store.getUserByUsername(memo.creatorUsername);
 
+  // Prepare memo creator.
+  useEffect(() => {
+    userV1Store.getOrFetchUserByUsername(memo.creatorUsername);
+  }, [memo.creatorUsername]);
+
+  // Update display time string.
   useEffect(() => {
     let intervalFlag: any = -1;
-    if (Date.now() - memo.createdTs < 1000 * 60 * 60 * 24) {
+    if (Date.now() - memo.displayTs < 1000 * 60 * 60 * 24) {
       intervalFlag = setInterval(() => {
-        setCreatedTimeStr(getFormatedMemoTimeStr(memo.createdTs, i18n.language));
+        setDisplayTime(getRelativeTimeString(memo.displayTs));
       }, 1000 * 1);
     }
 
@@ -52,18 +59,33 @@ const Memo: React.FC<Props> = (props: Props) => {
     };
   }, [i18n.language]);
 
-  const handleViewMemoDetailPage = () => {
-    navigate(`/m/${memo.id}`);
-  };
+  // Lazy rendering.
+  useEffect(() => {
+    if (shouldRender) {
+      return;
+    }
 
-  const handleShowEmbedMemoDialog = () => {
-    showEmbedMemoDialog(memo.id);
-  };
+    const root = document.body.querySelector("#root");
+    if (root) {
+      const checkShouldRender = () => {
+        if (root.scrollTop + window.innerHeight > (memoContainerRef.current?.offsetTop || 0)) {
+          setShouldRender(true);
+          root.removeEventListener("scroll", checkShouldRender);
+          return true;
+        }
+      };
 
-  const handleCopyContent = () => {
-    copy(memo.content);
-    toast.success(t("message.succeed-copy-content"));
-  };
+      if (checkShouldRender()) {
+        return;
+      }
+      root.addEventListener("scroll", checkShouldRender);
+    }
+  }, [lazyRendering, filterStore.state]);
+
+  if (!shouldRender) {
+    // Render a placeholder to occupy the space.
+    return <div className={`memo-wrapper min-h-[128px] ${"memos-" + memo.id}`} ref={memoContainerRef}></div>;
+  }
 
   const handleTogglePinMemoBtnClick = async () => {
     try {
@@ -78,7 +100,21 @@ const Memo: React.FC<Props> = (props: Props) => {
   };
 
   const handleEditMemoClick = () => {
-    editorStore.setEditMemoWithId(memo.id);
+    showMemoEditorDialog({
+      memoId: memo.id,
+    });
+  };
+
+  const handleMarkMemoClick = () => {
+    showMemoEditorDialog({
+      relationList: [
+        {
+          memoId: UNKNOWN_ID,
+          relatedMemoId: memo.id,
+          type: "REFERENCE",
+        },
+      ],
+    });
   };
 
   const handleArchiveMemoClick = async () => {
@@ -91,10 +127,18 @@ const Memo: React.FC<Props> = (props: Props) => {
       console.error(error);
       toast.error(error.response.data.message);
     }
+  };
 
-    if (editorStore.getState().editMemoId === memo.id) {
-      editorStore.clearEditMemo();
-    }
+  const handleDeleteMemoClick = async () => {
+    showCommonDialog({
+      title: t("memo.delete-memo"),
+      content: t("memo.delete-confirm"),
+      style: "warning",
+      dialogName: "delete-memo-dialog",
+      onConfirm: async () => {
+        await memoStore.deleteMemoById(memo.id);
+      },
+    });
   };
 
   const handleGenerateMemoImageBtnClick = () => {
@@ -113,7 +157,7 @@ const Memo: React.FC<Props> = (props: Props) => {
         filterStore.setTagFilter(tagName);
       }
     } else if (targetEl.classList.contains("todo-block")) {
-      if (isVisitorMode) {
+      if (readonly) {
         return;
       }
 
@@ -152,7 +196,7 @@ const Memo: React.FC<Props> = (props: Props) => {
   };
 
   const handleMemoContentDoubleClick = (e: React.MouseEvent) => {
-    if (isVisitorMode) {
+    if (readonly) {
       return;
     }
 
@@ -168,89 +212,80 @@ const Memo: React.FC<Props> = (props: Props) => {
       return;
     }
 
-    editorStore.setEditMemoWithId(memo.id);
+    handleEditMemoClick();
   };
 
-  const handleMemoCreatedTimeClick = () => {
+  const handleMemoCreatedTimeClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     showChangeMemoCreatedTsDialog(memo.id);
   };
 
-  const handleMemoVisibilityClick = (visibility: Visibility) => {
-    const currVisibilityQuery = filterStore.getState().visibility;
-    if (currVisibilityQuery === visibility) {
-      filterStore.setMemoVisibilityFilter(undefined);
-    } else {
-      filterStore.setMemoVisibilityFilter(visibility);
-    }
-  };
-
   return (
-    <div className={`memo-wrapper ${"memos-" + memo.id} ${memo.pinned ? "pinned" : ""}`} ref={memoContainerRef}>
-      {memo.pinned && <div className="corner-container"></div>}
-      <div className="memo-top-wrapper">
-        <div className="status-text-container">
-          <span className="time-text" onDoubleClick={handleMemoCreatedTimeClick}>
-            {createdTimeStr}
-          </span>
-          {isVisitorMode && (
-            <Link className="name-text" to={`/u/${memo.creatorId}`}>
-              @{memo.creatorName}
-            </Link>
-          )}
-          {memo.visibility !== "PRIVATE" && !isVisitorMode && (
-            <span
-              className={`status-text ${memo.visibility.toLocaleLowerCase()}`}
-              onClick={() => handleMemoVisibilityClick(memo.visibility)}
-            >
-              {memo.visibility}
+    <>
+      <div className={`memo-wrapper ${"memos-" + memo.id} ${memo.pinned && !readonly ? "pinned" : ""}`} ref={memoContainerRef}>
+        <div className="memo-top-wrapper">
+          <div className="w-full max-w-[calc(100%-20px)] flex flex-row justify-start items-center mr-1">
+            {creator && (
+              <>
+                <Link className="flex flex-row justify-start items-center" to={`/u/${memo.creatorUsername}`}>
+                  <UserAvatar className="!w-5 !h-auto mr-1" avatarUrl={creator.avatarUrl} />
+                  <span className="text-sm text-gray-600 max-w-[8em] truncate dark:text-gray-400">{creator.nickname}</span>
+                </Link>
+                <Icon.Dot className="w-4 h-auto text-gray-400 dark:text-zinc-400" />
+              </>
+            )}
+            <span className="text-sm text-gray-400 select-none" onDoubleClick={handleMemoCreatedTimeClick}>
+              {displayTime}
             </span>
-          )}
-        </div>
-        {!isVisitorMode && (
-          <div className="btns-container">
-            <span className="btn more-action-btn">
-              <Icon.MoreHorizontal className="icon-img" />
-            </span>
-            <div className="more-action-btns-wrapper">
-              <div className="more-action-btns-container">
-                <div className="btns-container">
-                  <div className="btn" onClick={handleTogglePinMemoBtnClick}>
-                    <Icon.Flag className={`icon-img ${memo.pinned ? "text-green-600" : ""}`} />
-                    <span className="tip-text">{memo.pinned ? t("common.unpin") : t("common.pin")}</span>
-                  </div>
-                  <div className="btn" onClick={handleEditMemoClick}>
-                    <Icon.Edit3 className="icon-img" />
-                    <span className="tip-text">{t("common.edit")}</span>
-                  </div>
-                  <div className="btn" onClick={handleGenerateMemoImageBtnClick}>
-                    <Icon.Share className="icon-img" />
-                    <span className="tip-text">{t("common.share")}</span>
+          </div>
+          <div className="btns-container space-x-2">
+            {!readonly && (
+              <>
+                <span className="btn more-action-btn">
+                  <Icon.MoreVertical className="icon-img" />
+                </span>
+                <div className="more-action-btns-wrapper">
+                  <div className="more-action-btns-container min-w-[6em]">
+                    <span className="btn" onClick={handleTogglePinMemoBtnClick}>
+                      {memo.pinned ? <Icon.BookmarkMinus className="w-4 h-auto mr-2" /> : <Icon.BookmarkPlus className="w-4 h-auto mr-2" />}
+                      {memo.pinned ? t("common.unpin") : t("common.pin")}
+                    </span>
+                    <span className="btn" onClick={handleEditMemoClick}>
+                      <Icon.Edit3 className="w-4 h-auto mr-2" />
+                      {t("common.edit")}
+                    </span>
+                    <span className="btn" onClick={handleGenerateMemoImageBtnClick}>
+                      <Icon.Share className="w-4 h-auto mr-2" />
+                      {t("common.share")}
+                    </span>
+                    <span className="btn" onClick={handleMarkMemoClick}>
+                      <Icon.Link className="w-4 h-auto mr-2" />
+                      {t("common.mark")}
+                    </span>
+                    <Divider className="!my-1" />
+                    <span className="btn text-orange-500" onClick={handleArchiveMemoClick}>
+                      <Icon.Archive className="w-4 h-auto mr-2" />
+                      {t("common.archive")}
+                    </span>
+                    <span className="btn text-red-600" onClick={handleDeleteMemoClick}>
+                      <Icon.Trash className="w-4 h-auto mr-2" />
+                      {t("common.delete")}
+                    </span>
                   </div>
                 </div>
-                <span className="btn" onClick={handleCopyContent}>
-                  {t("memo.copy")}
-                </span>
-                <span className="btn" onClick={handleViewMemoDetailPage}>
-                  {t("memo.view-detail")}
-                </span>
-                <span className="btn" onClick={handleShowEmbedMemoDialog}>
-                  Embed memo
-                </span>
-                <span className="btn archive-btn" onClick={handleArchiveMemoClick}>
-                  {t("common.archive")}
-                </span>
-              </div>
-            </div>
+              </>
+            )}
           </div>
-        )}
+        </div>
+        <MemoContent
+          content={memo.content}
+          onMemoContentClick={handleMemoContentClick}
+          onMemoContentDoubleClick={handleMemoContentDoubleClick}
+        />
+        <MemoResourceListView resourceList={memo.resourceList} />
+        <MemoRelationListView relationList={memo.relationList} />
       </div>
-      <MemoContent
-        content={memo.content}
-        onMemoContentClick={handleMemoContentClick}
-        onMemoContentDoubleClick={handleMemoContentDoubleClick}
-      />
-      <MemoResources resourceList={memo.resourceList} />
-    </div>
+    </>
   );
 };
 

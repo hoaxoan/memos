@@ -1,11 +1,12 @@
 import { Option, Select } from "@mui/joy";
 import { FC } from "react";
+import { availableLocales } from "@/i18n";
 import Icon from "./Icon";
 
 interface Props {
   value: Locale;
-  onChange: (locale: Locale) => void;
   className?: string;
+  onChange: (locale: Locale) => void;
 }
 
 const LocaleSelect: FC<Props> = (props: Props) => {
@@ -22,20 +23,26 @@ const LocaleSelect: FC<Props> = (props: Props) => {
       value={value}
       onChange={(_, value) => handleSelectChange(value as Locale)}
     >
-      <Option value="en">English</Option>
-      <Option value="zh">简体中文</Option>
-      <Option value="vi">Tiếng Việt</Option>
-      <Option value="fr">French</Option>
-      <Option value="nl">Nederlands</Option>
-      <Option value="sv">Svenska</Option>
-      <Option value="de">German</Option>
-      <Option value="es">Español</Option>
-      <Option value="uk">Українська</Option>
-      <Option value="ru">Русский</Option>
-      <Option value="it">Italiano</Option>
-      <Option value="hant">繁體中文</Option>
-      <Option value="tr">Turkish</Option>
-      <Option value="ko">한국어</Option>
+      {availableLocales.map((locale) => {
+        try {
+          const languageName = new Intl.DisplayNames([locale], { type: "language" }).of(locale);
+          if (languageName) {
+            return (
+              <Option key={locale} value={locale}>
+                {languageName.charAt(0).toUpperCase() + languageName.slice(1)}
+              </Option>
+            );
+          }
+        } catch (error) {
+          // do nth
+        }
+
+        return (
+          <Option key={locale} value={locale}>
+            {locale}
+          </Option>
+        );
+      })}
     </Select>
   );
 };

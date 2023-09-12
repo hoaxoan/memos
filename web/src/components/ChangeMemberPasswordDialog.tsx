@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useTranslation } from "react-i18next";
-import { useUserStore } from "../store/module";
-import Icon from "./Icon";
+import { useUserStore } from "@/store/module";
+import { useTranslate } from "@/utils/i18n";
 import { generateDialog } from "./Dialog";
+import Icon from "./Icon";
 
 interface Props extends DialogProps {
   user: User;
@@ -11,7 +11,7 @@ interface Props extends DialogProps {
 
 const ChangeMemberPasswordDialog: React.FC<Props> = (props: Props) => {
   const { user: propsUser, destroy } = props;
-  const { t } = useTranslation();
+  const t = useTranslate();
   const userStore = useUserStore();
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordAgain, setNewPasswordAgain] = useState("");
@@ -70,19 +70,19 @@ const ChangeMemberPasswordDialog: React.FC<Props> = (props: Props) => {
         </button>
       </div>
       <div className="dialog-content-container">
-        <p className="text-sm mb-1">{t("common.new-password")}</p>
+        <p className="text-sm mb-1">{t("auth.new-password")}</p>
         <input
           type="password"
           className="input-text"
-          placeholder={t("common.repeat-new-password")}
+          placeholder={t("auth.new-password")}
           value={newPassword}
           onChange={handleNewPasswordChanged}
         />
-        <p className="text-sm mb-1 mt-2">{t("common.repeat-new-password")}</p>
+        <p className="text-sm mb-1 mt-2">{t("auth.repeat-new-password")}</p>
         <input
           type="password"
           className="input-text"
-          placeholder={t("common.repeat-new-password")}
+          placeholder={t("auth.repeat-new-password")}
           value={newPasswordAgain}
           onChange={handleNewPasswordAgainChanged}
         />

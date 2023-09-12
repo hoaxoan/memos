@@ -1,18 +1,21 @@
+import classNames from "classnames";
 import { useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { useLayoutStore, useUserStore } from "../store/module";
-import { resolution } from "../utils/layout";
+import { useLayoutStore, useUserStore } from "@/store/module";
+import { useTranslate } from "@/utils/i18n";
+import { resolution } from "@/utils/layout";
 import Icon from "./Icon";
-import showResourcesDialog from "./ResourcesDialog";
-import showSettingDialog from "./SettingDialog";
-import showAskAIDialog from "./AskAIDialog";
-import showArchivedMemoDialog from "./ArchivedMemoDialog";
-import showAboutSiteDialog from "./AboutSiteDialog";
 import UserBanner from "./UserBanner";
 
+interface NavLinkItem {
+  id: string;
+  path: string;
+  title: string;
+  icon: React.ReactNode;
+}
+
 const Header = () => {
-  const { t } = useTranslation();
+  const t = useTranslate();
   const location = useLocation();
   const userStore = useUserStore();
   const layoutStore = useLayoutStore();
@@ -31,9 +34,56 @@ const Header = () => {
     handleWindowResize();
   }, [location]);
 
+  const homeNavLink: NavLinkItem = {
+    id: "header-home",
+    path: "/",
+    title: t("common.home"),
+    icon: <Icon.Home className="mr-3 w-6 h-auto opacity-70" />,
+  };
+  const dailyReviewNavLink: NavLinkItem = {
+    id: "header-daily-review",
+    path: "/review",
+    title: t("daily-review.title"),
+    icon: <Icon.Calendar className="mr-3 w-6 h-auto opacity-70" />,
+  };
+  const exploreNavLink: NavLinkItem = {
+    id: "header-explore",
+    path: "/explore",
+    title: t("common.explore"),
+    icon: <Icon.Hash className="mr-3 w-6 h-auto opacity-70" />,
+  };
+  const resourcesNavLink: NavLinkItem = {
+    id: "header-resources",
+    path: "/resources",
+    title: t("common.resources"),
+    icon: <Icon.Paperclip className="mr-3 w-6 h-auto opacity-70" />,
+  };
+  const archivedNavLink: NavLinkItem = {
+    id: "header-archived",
+    path: "/archived",
+    title: t("common.archived"),
+    icon: <Icon.Archive className="mr-3 w-6 h-auto opacity-70" />,
+  };
+  const settingNavLink: NavLinkItem = {
+    id: "header-setting",
+    path: "/setting",
+    title: t("common.settings"),
+    icon: <Icon.Settings className="mr-3 w-6 h-auto opacity-70" />,
+  };
+  const authNavLink: NavLinkItem = {
+    id: "header-auth",
+    path: "/auth",
+    title: t("common.sign-in"),
+    icon: <Icon.LogIn className="mr-3 w-6 h-auto opacity-70" />,
+  };
+
+  const navLinks: NavLinkItem[] = !isVisitorMode
+    ? [homeNavLink, dailyReviewNavLink, exploreNavLink, resourcesNavLink, archivedNavLink, settingNavLink]
+    : [exploreNavLink, authNavLink];
+
   return (
     <div
-      className={`fixed sm:sticky top-0 left-0 w-full sm:w-56 h-full flex-shrink-0 pointer-events-none sm:pointer-events-auto z-10 ${
+      className={`fixed sm:sticky top-0 left-0 w-full sm:w-56 h-full shrink-0 pointer-events-none sm:pointer-events-auto z-10 ${
         showHeader && "pointer-events-auto"
       }`}
     >
@@ -50,96 +100,23 @@ const Header = () => {
       >
         <UserBanner />
         <div className="w-full px-2 py-2 flex flex-col justify-start items-start shrink-0 space-y-2">
-          {!isVisitorMode && (
-            <>
-              <NavLink
-                to="/"
-                className={({ isActive }) =>
-                  `${
-                    isActive && "bg-white dark:bg-zinc-700 shadow"
-                  } px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700`
-                }
-              >
-                <>
-                  <Icon.Home className="mr-4 w-6 h-auto opacity-80" /> {t("common.home")}
-                </>
-              </NavLink>
-              <NavLink
-                to="/review"
-                className={({ isActive }) =>
-                  `${
-                    isActive && "bg-white dark:bg-zinc-700 shadow"
-                  } px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700`
-                }
-              >
-                <>
-                  <Icon.Calendar className="mr-4 w-6 h-auto opacity-80" /> {t("common.daily-review")}
-                </>
-              </NavLink>
-            </>
-          )}
-          <NavLink
-            to="/explore"
-            className={({ isActive }) =>
-              `${
-                isActive && "bg-white dark:bg-zinc-700 shadow"
-              } px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700`
-            }
-          >
-            <>
-              <Icon.Hash className="mr-4 w-6 h-auto opacity-80" /> {t("common.explore")}
-            </>
-          </NavLink>
-          {!isVisitorMode && (
-            <>
-              <button
-                className="px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700"
-                onClick={() => showAskAIDialog()}
-              >
-                <Icon.Bot className="mr-4 w-6 h-auto opacity-80" /> Ask AI
-              </button>
-              <button
-                className="px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700"
-                onClick={() => showResourcesDialog()}
-              >
-                <Icon.Paperclip className="mr-4 w-6 h-auto opacity-80" /> {t("common.resources")}
-              </button>
-              <button
-                className="px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700"
-                onClick={() => showArchivedMemoDialog()}
-              >
-                <Icon.Archive className="mr-4 w-6 h-auto opacity-80" /> {t("common.archived")}
-              </button>
-              <button
-                className="px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700"
-                onClick={() => showSettingDialog()}
-              >
-                <Icon.Settings className="mr-4 w-6 h-auto opacity-80" /> {t("common.settings")}
-              </button>
-            </>
-          )}
-          {isVisitorMode && (
-            <>
-              <NavLink
-                to="/auth"
-                className={({ isActive }) =>
-                  `${
-                    isActive && "bg-white dark:bg-zinc-700 shadow"
-                  } px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700`
-                }
-              >
-                <>
-                  <Icon.LogIn className="mr-4 w-6 h-auto opacity-80" /> {t("common.sign-in")}
-                </>
-              </NavLink>
-              <button
-                className="px-4 pr-5 py-2 rounded-lg flex flex-row items-center text-lg dark:text-gray-200 hover:bg-white hover:shadow dark:hover:bg-zinc-700"
-                onClick={() => showAboutSiteDialog()}
-              >
-                <Icon.CupSoda className="mr-4 w-6 h-auto opacity-80" /> {t("common.about")}
-              </button>
-            </>
-          )}
+          {navLinks.map((navLink) => (
+            <NavLink
+              key={navLink.id}
+              to={navLink.path}
+              id={navLink.id}
+              className={({ isActive }) =>
+                classNames(
+                  "px-4 pr-5 py-2 rounded-full border flex flex-row items-center text-lg text-gray-800 dark:text-gray-300 hover:bg-white hover:border-gray-200 dark:hover:border-zinc-600 dark:hover:bg-zinc-700",
+                  isActive ? "bg-white dark:bg-zinc-700 border-gray-200 dark:border-zinc-600" : "border-transparent"
+                )
+              }
+            >
+              <>
+                {navLink.icon} {navLink.title}
+              </>
+            </NavLink>
+          ))}
         </div>
       </header>
     </div>

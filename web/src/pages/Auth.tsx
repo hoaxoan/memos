@@ -1,37 +1,41 @@
-import { Button, Divider } from "@mui/joy";
+import { Button, Divider, Input } from "@mui/joy";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useTranslation } from "react-i18next";
-import { useGlobalStore, useUserStore } from "../store/module";
-import * as api from "../helpers/api";
-import { absolutifyLink } from "../helpers/utils";
-import useLoading from "../hooks/useLoading";
-import Icon from "../components/Icon";
-import AppearanceSelect from "../components/AppearanceSelect";
-import LocaleSelect from "../components/LocaleSelect";
-import "../less/auth.less";
+import AppearanceSelect from "@/components/AppearanceSelect";
+import Icon from "@/components/Icon";
+import LocaleSelect from "@/components/LocaleSelect";
+import * as api from "@/helpers/api";
+import { absolutifyLink } from "@/helpers/utils";
+import useLoading from "@/hooks/useLoading";
+import { useGlobalStore, useUserStore } from "@/store/module";
+import { useTranslate } from "@/utils/i18n";
 
 const Auth = () => {
-  const { t } = useTranslation();
+  const t = useTranslate();
   const globalStore = useGlobalStore();
   const userStore = useUserStore();
   const actionBtnLoadingState = useLoading(false);
   const { appearance, locale, systemStatus } = globalStore.state;
   const mode = systemStatus.profile.mode;
-  const [username, setUsername] = useState(mode === "demo" ? "demohero" : "");
-  const [password, setPassword] = useState(mode === "demo" ? "secret" : "");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const disablePasswordLogin = systemStatus.disablePasswordLogin;
   const [identityProviderList, setIdentityProviderList] = useState<IdentityProvider[]>([]);
 
   useEffect(() => {
-    userStore.doSignOut().catch();
     const fetchIdentityProviderList = async () => {
-      const {
-        data: { data: identityProviderList },
-      } = await api.getIdentityProviderList();
+      const { data: identityProviderList } = await api.getIdentityProviderList();
       setIdentityProviderList(identityProviderList);
     };
     fetchIdentityProviderList();
   }, []);
+
+  useEffect(() => {
+    if (mode === "demo") {
+      setUsername("demohero");
+      setPassword("secret");
+    }
+  }, [mode]);
 
   const handleUsernameInputChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value as string;
@@ -51,7 +55,20 @@ const Auth = () => {
     globalStore.setAppearance(appearance);
   };
 
-  const handleSignInBtnClick = async () => {
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (systemStatus?.host) {
+      handleSignInButtonClick();
+    } else {
+      handleSignUpButtonClick();
+    }
+  };
+
+  const handleSignInButtonClick = async () => {
+    if (username === "" || password === "") {
+      return;
+    }
+
     if (actionBtnLoadingState.isLoading) {
       return;
     }
@@ -67,12 +84,16 @@ const Auth = () => {
       }
     } catch (error: any) {
       console.error(error);
-      toast.error(error.response.data.error);
+      toast.error(error.response.data.message || t("message.login-failed"));
     }
     actionBtnLoadingState.setFinish();
   };
 
-  const handleSignUpBtnsClick = async () => {
+  const handleSignUpButtonClick = async () => {
+    if (username === "" || password === "") {
+      return;
+    }
+
     if (actionBtnLoadingState.isLoading) {
       return;
     }
@@ -84,11 +105,11 @@ const Auth = () => {
       if (user) {
         window.location.href = "/";
       } else {
-        toast.error(t("common.singup-failed"));
+        toast.error(t("message.signup-failed"));
       }
     } catch (error: any) {
       console.error(error);
-      toast.error(error.response.data.error);
+      toast.error(error.response.data.message || error.message || t("message.signup-failed"));
     }
     actionBtnLoadingState.setFinish();
   };
@@ -108,53 +129,69 @@ const Auth = () => {
   };
 
   return (
-    <div className="page-wrapper auth">
-      <div className="page-container">
-        <div className="auth-form-wrapper">
-          <div className="page-header-container">
-            <div className="title-container">
-              <img className="logo-img" src={systemStatus.customizedProfile.logoUrl} alt="" />
-              <p className="logo-text">{systemStatus.customizedProfile.name}</p>
-            </div>
-            <p className="slogan-text">{systemStatus.customizedProfile.description || t("slogan")}</p>
+    <div className="flex flex-row justify-center items-center w-full h-full dark:bg-zinc-800">
+      <div className="w-80 max-w-full h-full py-4 flex flex-col justify-start items-center">
+        <div className="w-full py-4 grow flex flex-col justify-center items-center">
+          <div className="w-full flex flex-col justify-center items-center mb-2">
+            <img className="h-20 w-auto rounded-full shadow" src={systemStatus.customizedProfile.logoUrl} alt="" />
+            <p className="mt-2 text-3xl text-black opacity-80 dark:text-gray-200">{systemStatus.customizedProfile.name}</p>
           </div>
-          <div className={`page-content-container ${actionBtnLoadingState.isLoading ? "requesting" : ""}`}>
-            <div className="form-item-container input-form-container">
-              <span className={`normal-text ${username ? "not-null" : ""}`}>{t("common.username")}</span>
-              <input className="input-text" type="text" value={username} onChange={handleUsernameInputChanged} required />
-            </div>
-            <div className="form-item-container input-form-container">
-              <span className={`normal-text ${password ? "not-null" : ""}`}>{t("common.password")}</span>
-              <input className="input-text" type="password" value={password} onChange={handlePasswordInputChanged} required />
-            </div>
-          </div>
-          <div className="action-btns-container">
-            {systemStatus?.host ? (
-              <>
+          {!disablePasswordLogin && (
+            <form className="w-full mt-2" onSubmit={handleFormSubmit}>
+              <div className="flex flex-col justify-start items-start w-full gap-4">
+                <Input
+                  className="w-full"
+                  size="lg"
+                  type="text"
+                  readOnly={actionBtnLoadingState.isLoading}
+                  placeholder={t("common.username")}
+                  value={username}
+                  onChange={handleUsernameInputChanged}
+                  required
+                />
+                <Input
+                  className="w-full"
+                  size="lg"
+                  type="password"
+                  readOnly={actionBtnLoadingState.isLoading}
+                  placeholder={t("common.password")}
+                  value={password}
+                  onChange={handlePasswordInputChanged}
+                  required
+                />
+              </div>
+              <div className="flex flex-row justify-end items-center w-full mt-6">
                 {actionBtnLoadingState.isLoading && <Icon.Loader className="w-4 h-auto mr-2 animate-spin dark:text-gray-300" />}
-                {systemStatus?.allowSignUp && (
+                {!systemStatus.host ? (
+                  <Button disabled={actionBtnLoadingState.isLoading} onClick={handleSignUpButtonClick}>
+                    {t("common.sign-up")}
+                  </Button>
+                ) : (
                   <>
-                    <button className={`btn-text ${actionBtnLoadingState.isLoading ? "requesting" : ""}`} onClick={handleSignUpBtnsClick}>
-                      {t("common.sign-up")}
-                    </button>
-                    <span className="mr-2 font-mono text-gray-200">/</span>
+                    {systemStatus?.allowSignUp && (
+                      <>
+                        <Button variant={"plain"} disabled={actionBtnLoadingState.isLoading} onClick={handleSignUpButtonClick}>
+                          {t("common.sign-up")}
+                        </Button>
+                        <span className="mr-2 font-mono text-gray-200">/</span>
+                      </>
+                    )}
+                    <Button type="submit" disabled={actionBtnLoadingState.isLoading} onClick={handleSignInButtonClick}>
+                      {t("common.sign-in")}
+                    </Button>
                   </>
                 )}
-                <button className={`btn-primary ${actionBtnLoadingState.isLoading ? "requesting" : ""}`} onClick={handleSignInBtnClick}>
-                  {t("common.sign-in")}
-                </button>
-              </>
-            ) : (
-              <>
-                <button className={`btn-primary ${actionBtnLoadingState.isLoading ? "requesting" : ""}`} onClick={handleSignUpBtnsClick}>
-                  {t("auth.signup-as-host")}
-                </button>
-              </>
-            )}
-          </div>
+              </div>
+            </form>
+          )}
+          {!systemStatus.host && (
+            <p className="w-full inline-block float-right text-sm mt-4 text-gray-500 text-right whitespace-pre-wrap">
+              {t("auth.host-tip")}
+            </p>
+          )}
           {identityProviderList.length > 0 && (
             <>
-              <Divider className="!my-4">or</Divider>
+              {!disablePasswordLogin && <Divider className="!my-4">{t("common.or")}</Divider>}
               <div className="w-full flex flex-col space-y-2">
                 {identityProviderList.map((identityProvider) => (
                   <Button
@@ -165,13 +202,12 @@ const Auth = () => {
                     size="md"
                     onClick={() => handleSignInWithIdentityProvider(identityProvider)}
                   >
-                    Sign in with {identityProvider.name}
+                    {t("common.sign-in-with", { provider: identityProvider.name })}
                   </Button>
                 ))}
               </div>
             </>
           )}
-          {!systemStatus?.host && <p className="tip-text">{t("auth.host-tip")}</p>}
         </div>
         <div className="flex flex-row items-center justify-center w-full gap-2">
           <LocaleSelect value={locale} onChange={handleLocaleSelectChange} />

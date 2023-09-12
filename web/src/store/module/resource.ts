@@ -1,8 +1,9 @@
+import * as api from "@/helpers/api";
+import { DEFAULT_MEMO_LIMIT } from "@/helpers/consts";
+import { useTranslate } from "@/utils/i18n";
 import store, { useAppSelector } from "../";
-import { patchResource, setResources, deleteResource } from "../reducer/resource";
-import * as api from "../../helpers/api";
-
-const MAX_FILE_SIZE = 32 << 20;
+import { deleteResource, patchResource, setResources, upsertResources } from "../reducer/resource";
+import { useGlobalStore } from "./global";
 
 const convertResponseModelResource = (resource: Resource): Resource => {
   return {
@@ -14,6 +15,9 @@ const convertResponseModelResource = (resource: Resource): Resource => {
 
 export const useResourceStore = () => {
   const state = useAppSelector((state) => state.resource);
+  const t = useTranslate();
+  const globalStore = useGlobalStore();
+  const maxUploadSizeMiB = globalStore.state.systemStatus.maxUploadSizeMiB;
 
   return {
     state,
@@ -21,13 +25,23 @@ export const useResourceStore = () => {
       return store.getState().resource;
     },
     async fetchResourceList(): Promise<Resource[]> {
-      const { data } = (await api.getResourceList()).data;
+      const { data } = await api.getResourceList();
       const resourceList = data.map((m) => convertResponseModelResource(m));
       store.dispatch(setResources(resourceList));
       return resourceList;
     },
+    async fetchResourceListWithLimit(limit = DEFAULT_MEMO_LIMIT, offset?: number): Promise<Resource[]> {
+      const resourceFind: ResourceFind = {
+        limit,
+        offset,
+      };
+      const { data } = await api.getResourceListWithLimit(resourceFind);
+      const resourceList = data.map((m) => convertResponseModelResource(m));
+      store.dispatch(upsertResources(resourceList));
+      return resourceList;
+    },
     async createResource(resourceCreate: ResourceCreate): Promise<Resource> {
-      const { data } = (await api.createResource(resourceCreate)).data;
+      const { data } = await api.createResource(resourceCreate);
       const resource = convertResponseModelResource(data);
       const resourceList = state.resources;
       store.dispatch(setResources([resource, ...resourceList]));
@@ -35,24 +49,42 @@ export const useResourceStore = () => {
     },
     async createResourceWithBlob(file: File): Promise<Resource> {
       const { name: filename, size } = file;
-      if (size > MAX_FILE_SIZE) {
-        return Promise.reject("overload max size: 32MB");
+      if (size > maxUploadSizeMiB * 1024 * 1024) {
+        return Promise.reject(t("message.maximum-upload-size-is", { size: maxUploadSizeMiB }));
       }
 
       const formData = new FormData();
       formData.append("file", file, filename);
-      const { data } = (await api.createResourceWithBlob(formData)).data;
+      const { data } = await api.createResourceWithBlob(formData);
       const resource = convertResponseModelResource(data);
       const resourceList = state.resources;
       store.dispatch(setResources([resource, ...resourceList]));
       return resource;
+    },
+    async createResourcesWithBlob(files: FileList): Promise<Array<Resource>> {
+      let newResourceList: Array<Resource> = [];
+      for (const file of files) {
+        const { name: filename, size } = file;
+        if (size > maxUploadSizeMiB * 1024 * 1024) {
+          return Promise.reject(t("message.file-exceeds-upload-limit-of", { file: filename, size: maxUploadSizeMiB }));
+        }
+
+        const formData = new FormData();
+        formData.append("file", file, filename);
+        const { data } = await api.createResourceWithBlob(formData);
+        const resource = convertResponseModelResource(data);
+        newResourceList = [resource, ...newResourceList];
+      }
+      const resourceList = state.resources;
+      store.dispatch(setResources([...newResourceList, ...resourceList]));
+      return newResourceList;
     },
     async deleteResourceById(id: ResourceId) {
       await api.deleteResourceById(id);
       store.dispatch(deleteResource(id));
     },
     async patchResource(resourcePatch: ResourcePatch): Promise<Resource> {
-      const { data } = (await api.patchResource(resourcePatch)).data;
+      const { data } = await api.patchResource(resourcePatch);
       const resource = convertResponseModelResource(data);
       store.dispatch(patchResource(resource));
       return resource;

@@ -1,44 +1,30 @@
-import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
-import { useTranslation } from "react-i18next";
-import { Link, useLocation, useParams } from "react-router-dom";
-import { UNKNOWN_ID } from "../helpers/consts";
-import { useGlobalStore, useMemoStore, useUserStore } from "../store/module";
-import useLoading from "../hooks/useLoading";
-import MemoContent from "../components/MemoContent";
-import MemoResources from "../components/MemoResources";
-import "../less/memo-detail.less";
-
-interface State {
-  memo: Memo;
-}
+import { useParams } from "react-router-dom";
+import FloatingNavButton from "@/components/FloatingNavButton";
+import Memo from "@/components/Memo";
+import UserAvatar from "@/components/UserAvatar";
+import useLoading from "@/hooks/useLoading";
+import { useMemoStore } from "@/store/module";
+import { useUserV1Store } from "@/store/v1";
+import { User } from "@/types/proto/api/v2/user_service_pb";
 
 const MemoDetail = () => {
-  const { t, i18n } = useTranslation();
   const params = useParams();
-  const location = useLocation();
-  const globalStore = useGlobalStore();
   const memoStore = useMemoStore();
-  const userStore = useUserStore();
-  const [state, setState] = useState<State>({
-    memo: {
-      id: UNKNOWN_ID,
-    } as Memo,
-  });
+  const userV1Store = useUserV1Store();
   const loadingState = useLoading();
-  const customizedProfile = globalStore.state.systemStatus.customizedProfile;
-  const user = userStore.state.user;
+  const [user, setUser] = useState<User>();
+  const memoId = Number(params.memoId);
+  const memo = memoStore.state.memos.find((memo) => memo.id === memoId);
 
   useEffect(() => {
-    const memoId = Number(params.memoId);
     if (memoId && !isNaN(memoId)) {
       memoStore
         .fetchMemoById(memoId)
-        .then((memo) => {
-          setState({
-            memo,
-          });
+        .then(async (memo) => {
+          const user = await userV1Store.getOrFetchUserByUsername(memo.creatorUsername);
+          setUser(user);
           loadingState.setFinish();
         })
         .catch((error) => {
@@ -46,50 +32,35 @@ const MemoDetail = () => {
           toast.error(error.response.data.message);
         });
     }
-  }, [location]);
+  }, [memoId]);
 
   return (
-    <section className="page-wrapper memo-detail">
-      <div className="page-container">
-        <div className="page-header">
-          <div className="title-container">
-            <img className="logo-img" src={customizedProfile.logoUrl} alt="" />
-            <p className="logo-text">{customizedProfile.name}</p>
-          </div>
-          <div className="action-button-container">
-            {!loadingState.isLoading && (
-              <>
-                {user ? (
-                  <Link to="/" className="btn">
-                    <span className="icon">🏠</span> {t("common.back-to-home")}
-                  </Link>
-                ) : (
-                  <Link to="/auth" className="btn">
-                    <span className="icon">👉</span> {t("common.sign-in")}
-                  </Link>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        {!loadingState.isLoading && (
-          <main className="memos-wrapper">
-            <div className="memo-container">
-              <div className="memo-header">
-                <div className="status-container">
-                  <span className="time-text">{dayjs(state.memo.createdTs).locale(i18n.language).format("YYYY/MM/DD HH:mm:ss")}</span>
-                  <a className="name-text" href={`/u/${state.memo.creatorId}`}>
-                    @{state.memo.creatorName}
-                  </a>
-                </div>
-              </div>
-              <MemoContent className="memo-content" content={state.memo.content} onMemoContentClick={() => undefined} />
-              <MemoResources resourceList={state.memo.resourceList} />
+    <>
+      <section className="relative top-0 w-full min-h-full overflow-x-hidden bg-zinc-100 dark:bg-zinc-800">
+        <div className="relative w-full min-h-full mx-auto flex flex-col justify-start items-center pb-6">
+          <div className="w-full flex flex-col justify-start items-center py-8">
+            <UserAvatar className="!w-20 h-auto mb-4 drop-shadow" avatarUrl={user?.avatarUrl} />
+            <div>
+              <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{user?.nickname}</p>
             </div>
-          </main>
-        )}
-      </div>
-    </section>
+          </div>
+          {!loadingState.isLoading &&
+            (memo ? (
+              <>
+                <main className="relative flex-grow max-w-2xl w-full min-h-full flex flex-col justify-start items-start px-4">
+                  <Memo memo={memo} />
+                </main>
+              </>
+            ) : (
+              <>
+                <p>Not found</p>
+              </>
+            ))}
+        </div>
+      </section>
+
+      <FloatingNavButton />
+    </>
   );
 };
 
